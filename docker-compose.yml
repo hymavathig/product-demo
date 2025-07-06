@@ -1,0 +1,38 @@
+#version: '3.8'  # ✅ Docker Compose file format version (stable and widely supported)
+
+services:  # ✅ Define the services (containers) we want to run
+
+  mysql:  # 🐬 MySQL service
+    image: mysql:8.0  # ✅ Use official MySQL 8.0 image
+    container_name: mysql-container  # ✅ Name this container for easy reference
+    environment:  # ✅ Set environment variables for MySQL
+      MYSQL_ROOT_PASSWORD: root  # 🔐 Root password for MySQL
+      MYSQL_DATABASE: productdb  # 🗂️ Automatically create "productdb" on startup
+    ports:
+      - "3307:3306"  # 🔁 Map host port 3307 to container port 3306 (MySQL)
+      #    Use localhost:3307 to connect from host
+    networks:
+      - spring-net  # 🌐 Place MySQL in the shared network
+    healthcheck:  # ✅ Ensure MySQL is fully ready before app tries to connect
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s  # ⏱️ Check every 10 seconds
+      timeout: 5s    # ⚠️ Timeout after 5 seconds
+      retries: 5     # 🔁 Retry up to 5 times
+
+  product-service:  # 🚀 Spring Boot Application
+    image: product-app:latest  # ✅ Use the Docker image you built (`docker build`)
+    container_name: product-service-container  # ✅ Name the container
+    depends_on:
+      mysql:
+        condition: service_healthy  # ✅ Wait until MySQL passes health check
+    ports:
+      - "8080:8080"  # 🌐 Expose Spring Boot on port 8080
+    environment:  # ✅ Spring Boot reads DB config from these environment variables
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/productdb  # 💡 "mysql" = service name (not localhost)
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    networks:
+      - spring-net  # 🌐 Same network so it can talk to MySQL
+
+networks:
+  spring-net:  # ✅ Define a custom Docker network
